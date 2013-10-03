@@ -19,7 +19,9 @@ var NONE        = 4,
     COUNTDOWN   = 8,
     EATEN_PAUSE = 9,
     DYING       = 10,
-    Pacman      = {};
+    Pacman      = {},
+	hasPlayed	= false;
+	
 
 Pacman.FPS = 30;
 
@@ -332,13 +334,27 @@ Pacman.User = function (game, map) {
         resetPosition();
     };        
     
+	function swipeDown(swipeDirection) {
+		alert('swipe');
+		switch (swipeDirection) {
+			case 'down':
+				due = DOWN;
+				break;
+		}
+		alert('done' + due);
+		return true;
+	};
+	
     function keyDown(e) {
-        if (typeof keyMap[e.keyCode] !== "undefined") { 
+		if (typeof keyMap[e.keyCode] !== "undefined") { 
             due = keyMap[e.keyCode];
             e.preventDefault();
             e.stopPropagation();
             return false;
-        }
+        } else if (e === 'up') { due = UP; }
+        else if (e === 'down') { due = DOWN; }
+        else if (e === 'left') { due = LEFT; }
+        else if (e === 'right') { due = RIGHT; }
         return true;
 	};
 
@@ -587,7 +603,7 @@ Pacman.Map = function (size) {
     }
     
     function reset() {       
-        map    = Pacman.MAP.clone();
+        map    = clone(Pacman.MAP);
         height = map.length;
         width  = map[0].length;        
     };
@@ -818,7 +834,7 @@ var PACMAN = (function () {
         for (var i = 0; i < ghosts.length; i += 1) { 
             ghosts[i].reset();
         }
-        audio.play("start");
+        //audio.play("start");
         timerStart = tick;
         setState(COUNTDOWN);
     }    
@@ -831,21 +847,26 @@ var PACMAN = (function () {
         map.draw(ctx);
         startLevel();
     }
-
+	
+	function swipeUp() {return user.keyDown('up');}
+	function swipeDown() {return user.keyDown('down');}
+	function swipeLeft() {return user.keyDown('left');}
+	function swipeRight() {return user.keyDown('right');}
+	
     function keyDown(e) {
         if (e.keyCode === KEY.N) {
             startNewGame();
         } else if (e.keyCode === KEY.S) {
-            audio.disableSound();
+            //audio.disableSound();
             localStorage["soundDisabled"] = !soundDisabled();
         } else if (e.keyCode === KEY.P && state === PAUSE) {
-            audio.resume();
+            //audio.resume();
             map.draw(ctx);
             setState(stored);
         } else if (e.keyCode === KEY.P) {
             stored = state;
             setState(PAUSE);
-            audio.pause();
+            //audio.pause();
             map.draw(ctx);
             dialog("Paused");
         } else if (state !== PAUSE) {   
@@ -897,7 +918,7 @@ var PACMAN = (function () {
         ctx.fillStyle = !soundDisabled() ? "#00FF00" : "#FF0000";
         ctx.font = "bold 16px sans-serif";
         //ctx.fillText("♪", 10, textBase);
-        ctx.fillText("s", 10, textBase);
+       // ctx.fillText("s", 10, textBase); // sound
 
         ctx.fillStyle = "#FFFF00";
         ctx.font      = "14px BDCartoonShoutRegular";
@@ -936,7 +957,7 @@ var PACMAN = (function () {
         for (i = 0, len = ghosts.length; i < len; i += 1) {
             if (collided(userPos, ghostPos[i]["new"])) {
                 if (ghosts[i].isVunerable()) { 
-                    audio.play("eatghost");
+                    //audio.play("eatghost");
                     ghosts[i].eat();
                     eatenCount += 1;
                     nScore = eatenCount * 50;
@@ -945,7 +966,7 @@ var PACMAN = (function () {
                     setState(EATEN_PAUSE);
                     timerStart = tick;
                 } else if (ghosts[i].isDangerous()) {
-                    audio.play("die");
+                   // audio.play("die");
                     setState(DYING);
                     timerStart = tick;
                 }
@@ -968,7 +989,8 @@ var PACMAN = (function () {
         } else if (state === WAITING && stateChanged) {            
             stateChanged = false;
             map.draw(ctx);
-            dialog("Press N to start a New game");            
+			hasPlayed = false;
+            dialog("Tap screen to start a New game");            
         } else if (state === EATEN_PAUSE && 
                    (tick - timerStart) > (Pacman.FPS / 3)) {
             map.draw(ctx);
@@ -1004,7 +1026,7 @@ var PACMAN = (function () {
     }
 
     function eatenPill() {
-        audio.play("eatpill");
+       // audio.play("eatpill");
         timerStart = tick;
         eatenCount = 0;
         for (i = 0; i < ghosts.length; i += 1) {
@@ -1040,7 +1062,7 @@ var PACMAN = (function () {
 
         ctx  = canvas.getContext('2d');
 
-        audio = new Pacman.Audio({"soundDisabled":soundDisabled});
+        //audio = new Pacman.Audio({"soundDisabled":soundDisabled});
         map   = new Pacman.Map(blockSize);
         user  = new Pacman.User({ 
             "completedLevel" : completedLevel, 
@@ -1066,7 +1088,8 @@ var PACMAN = (function () {
             ["eating2", root + "audio/eating.short." + extension]
         ];
 
-        load(audio_files, function() { loaded(); });
+        //load(audio_files, function() { loaded(); });
+		loaded();
     };
 
     function load(arr, callback) { 
@@ -1075,16 +1098,34 @@ var PACMAN = (function () {
             callback();
         } else { 
             var x = arr.pop();
-            audio.load(x[0], x[1], function() { load(arr, callback); });
+            //audio.load(x[0], x[1], function() { load(arr, callback); });
         }
     };
         
     function loaded() {
 
-        dialog("Press N to Start");
+        dialog("Tap screen to Start");
         
-        document.addEventListener("keydown", keyDown, true);
-        document.addEventListener("keypress", keyPress, true); 
+        document.addEventListener("keydown", 	keyDown, 	true);
+        document.addEventListener("keypress", 	keyPress, 	true);
+		
+		var touchElement 	= document.getElementById('touch');
+		var hammertime 		= Hammer(touchElement).on("tap", function(event) {
+			if (hasPlayed === false) {
+				hasPlayed = true;
+				startNewGame();
+			}
+		});
+		
+		// stop iOS page bounce
+		document.addEventListener('touchmove',function(e) {
+			e.preventDefault();
+		});
+		
+		var hammertimeSwipeUp 		= Hammer(touchElement).on("swipeup", 	swipeUp);
+		var hammertimeSwipeDown 	= Hammer(touchElement).on("swipedown", 	swipeDown);
+		var hammertimeSwipeLeft		= Hammer(touchElement).on("swipeleft", 	swipeLeft);
+		var hammertimeSwipeRight 	= Hammer(touchElement).on("swiperight", swipeRight);
         
         timer = window.setInterval(mainLoop, 1000 / Pacman.FPS);
     };
@@ -1253,17 +1294,14 @@ Pacman.WALLS = [
      {"line": [10.5, 9.5]}]
 ];
 
-Object.prototype.clone = function () {
-    var i, newObj = (this instanceof Array) ? [] : {};
-    for (i in this) {
-        if (i === 'clone') {
-            continue;
-        }
-        if (this[i] && typeof this[i] === "object") {
-            newObj[i] = this[i].clone();
-        } else {
-            newObj[i] = this[i];
-        }
+function clone(obj){
+    if(obj == null || typeof(obj) != 'object'){
+        return obj;
     }
-    return newObj;
-};
+
+    var temp = new obj.constructor();
+    for(var key in obj){
+        temp[key] = clone(obj[key]);
+    }
+    return temp;
+}
